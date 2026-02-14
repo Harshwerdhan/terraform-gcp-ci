@@ -7,7 +7,7 @@ variable "instance_zone" {
 variable "instance_name" {
   description = "Name of the Web Server Instance."
   type        = string
-  default     = "whizlabs-instance"
+  default     = "whizlabs-instance-harshwerdhan"
 }
 
 variable "instance_type" {
