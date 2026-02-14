@@ -26,7 +26,7 @@ EOF
 }
 
 resource "google_compute_firewall" "http-server" {
-  name    = "allow-http"
+  name    = "allow-http-harshwerdhan"
   network = "default"
 
   allow {
