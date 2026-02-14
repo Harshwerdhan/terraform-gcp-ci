@@ -1,0 +1,81 @@
+name: 'Terraform CI'
+
+on:
+  pull_request:
+
+jobs:
+  terraform:
+    name: "Terraform CI"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      pull-requests: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+
+    - name: Terraform Init
+      id: init
+      run: terraform init -reconfigure -upgrade
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform plan -no-color > plan.txt
+        echo "PLAN_OUTPUT<<EOF" >> $GITHUB_ENV
+        cat plan.txt >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+    - name: Comment Plan on PR
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `#### Terraform Plan 📖
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`
+          ${process.env.PLAN_OUTPUT}
+          \`\`\`
+
+          </details>
+
+          *Pusher: @${{ github.actor }}, Workflow: \`${{ github.workflow }}\`, Action: \`${{ github.event_name }}\`*`;
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment =>
+            comment.user.type === 'Bot' && comment.body.includes('#### Terraform Plan')
+          );
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: output
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: output
+            });
+          }
